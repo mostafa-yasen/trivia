@@ -88,6 +88,10 @@ def create_app(test_config=None):
   @app.route('/questions/<int:question_id>', methods=['DELETE'])
   def delete_specific_questions(question_id):
     selected_question=Question.query.get(question_id)
+
+    if not selected_question:
+      abort(404)
+
     selected_question.delete()
     questions = Question.query.all()
 
