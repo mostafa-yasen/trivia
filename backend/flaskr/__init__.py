@@ -100,7 +100,6 @@ def create_app(test_config=None):
     })
 
 
-
   '''
   @TODO: 
   Create an endpoint to POST a new question, 
@@ -111,6 +110,31 @@ def create_app(test_config=None):
   the form will clear and the question will appear at the end of the last page
   of the questions list in the "List" tab.  
   '''
+  @app.route('/questions', methods=['post'])
+  def create_new_questions():
+    page = request.args.get('page', 1, type=int)
+    start = (page -1) * 10 
+    end = start + 10 
+    body = request.get_json()
+    new_answer= body.get('answer', None)
+    new_category= body.get('category', None)
+    new_difficulty= body.get('difficulty', None)
+    new_question= body.get('question', None)
+
+    question = Question(
+      answer=new_answer, category=new_category , difficulty=new_difficulty,
+      question=new_question
+    )
+    question.insert()
+    questions = Question.query.all()
+    formatted_questions = [question.format() for question in questions]
+
+    return jsonify ({
+      'questions' : formatted_questions[start:end] ,
+      'total_questions' : len(formatted_questions),
+      'success': True ,
+      'created' : question.id 
+    })
 
   '''
   @TODO: 
