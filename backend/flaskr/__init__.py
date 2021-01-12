@@ -62,8 +62,8 @@ def create_app(test_config=None):
   @app.route('/questions', methods=['GET'])
   def get_questions():
     page = request.args.get('page', 1, type=int)
-    start = (page -1) * 10 
-    end = start + 10 
+    start = (page -1) * 10
+    end = start + 10
     questions = Question.query.all()
     formatted_questions = [question.format() for question in questions]
     categories ={}
@@ -71,11 +71,16 @@ def create_app(test_config=None):
             categories[category.id] = category.type
     
 
+    total = len(formatted_questions)
+    formatted_questions = formatted_questions[start:end]
+    if not len(formatted_questions):
+      abort(404)
+
     return jsonify({
       'success': True ,
-      'questions' : formatted_questions[start:end] ,
+      'questions' : formatted_questions,
       'categories': categories ,
-      'total_questions' : len(formatted_questions)
+      'total_questions' : total
     })
 
   '''
@@ -87,20 +92,17 @@ def create_app(test_config=None):
   '''
   @app.route('/questions/<int:question_id>', methods=['DELETE'])
   def delete_specific_questions(question_id):
-    selected_question=Question.query.get(question_id)
+    selected_question = Question.query.get(question_id)
 
     if not selected_question:
-      abort(404)
+      abort(422)
 
     selected_question.delete()
     questions = Question.query.all()
 
-    if selected_question is None:
-      abort(404)
-
     return jsonify ({
-        'success': True ,
-        'deleted' : question_id 
+      'success': True ,
+      'deleted' : question_id
     })
 
 
@@ -152,21 +154,20 @@ def create_app(test_config=None):
   '''
   @app.route('/questions/search', methods=['POST'])
   def get_searched_questions():
-    page = request.args.get('page', 1, type=int)
-    start = (page -1) * 10 
-    end = start + 10 
-    search_term = request.form.get('search_term', '')
-    searched_question=Question.query.filter(Question.question.ilike(f'%{search_term}%')).all()
-    formatted_questions = [question.format() for question in searched_question]
-    
-    if searched_question is None:
-      abort(404)
-        
-    return jsonify ({
-        'questions' : formatted_questions[start:end] ,
-        'total_questions' : len(formatted_questions) ,
-        'sucess' : True
-    })
+    body = request.get_json()
+    search_term = body.get('searchTerm', None)
+
+    if search_term:
+      search_results = Question.query.filter(
+        Question.question.ilike(f'%{search_term}%')).all()
+
+      return jsonify({
+        'success': True,
+        'questions': [question.format() for question in search_results],
+        'total_questions': len(search_results),
+        'current_category': None
+      })
+    abort(404)
 
   '''
   @TODO: 
@@ -183,13 +184,13 @@ def create_app(test_config=None):
 
     if category_id is None :
       abort(404)
-    else:
-      return jsonify({
-        'success ': True ,
-        'questions' : formatted_questions,
-        'current_category' : category_id ,
-        'total_questions' : len(formatted_questions)
-      })
+
+    return jsonify({
+      'success': True,
+      'questions': formatted_questions,
+      'current_category': category_id ,
+      'total_questions': len(formatted_questions)
+    })
 
 
   '''
@@ -206,7 +207,11 @@ def create_app(test_config=None):
   @app.route('/quizzes', methods=['POST'])
   def play_quiz():
     body = request.get_json()
-    category = body.get('quiz_category', None).get('id')
+
+    if not ('quiz_category' in body and 'previous_questions' in body):
+      abort(422)
+
+    category = body.get('quiz_category', {}).get('id')
     previous_questions = body.get('previous_questions', None)
 
     if category == 0:
@@ -238,8 +243,8 @@ def create_app(test_config=None):
         'question': question
       }), 200
 
-    except:
-      abort(404)
+    except Exception as e:
+      print(e)
 
   '''
   @TODO: 
